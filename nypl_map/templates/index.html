@@ -1,0 +1,159 @@
+{% load static %}
+
+<!DOCTYPE html>
+    <meta charset='utf-8'>
+    <head>
+        <style>
+            html {
+              font: 12px serif;
+              background: #000;
+            }
+
+            #nyc_map {
+                width: 50%;
+                margin: auto;
+            }
+
+            svg{
+                width: 100%;
+                margin: auto;
+                background: #000;
+            }
+            .divider{
+                height: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="divider"></div>
+        <div id='nyc_map'>
+            <script src='http://d3js.org/d3.v5.js'></script>
+            <script type='text/javascript'>
+                let color_codes = {
+                    'blue': '#2850ad',
+                    'orange': '#ff6319',
+                    'light_green': '#6cbe45',
+                    'grey': '#a7a9ac',
+                    'brown': '#996633',
+                    'yellow': '#fccc0a',
+                    'red': '#ee352e',
+                    'green': '#00933c',
+                    'purple': '#b933ad',
+                    'turquoise': '#00add0',
+                    'dark_grey': '#808183'
+                }
+                let subway_colors = {
+                    'A': 'blue',
+                    'C': 'blue',
+                    'E': 'blue',
+                    'B': 'orange',
+                    'D': 'orange',
+                    'F': 'orange',
+                    'M': 'orange',
+                    'G': 'light_green',
+                    'L': 'grey',
+                    'J': 'brown',
+                    'Z': 'brown',
+                    'N': 'yellow',
+                    'Q': 'yellow',
+                    'R': 'yellow',
+                    'W': 'yellow',
+                    '1': 'red',
+                    '2': 'red',
+                    '3': 'red',
+                    '4': 'green',
+                    '5': 'green',
+                    '6': 'green',
+                    '7': 'purple',
+                    'T': 'turquoise',
+                    'S': 'dark_grey',
+                }
+
+                function load_subway(){
+                    d3.json('{% static 'subway.geojson' %}').then(function(subway_data){
+                        svg.append('g')
+                             .attr('id', 'subway')
+                             .selectAll('path')
+                             .data(subway_data.features)
+                             .enter()
+                             .append('path')
+                             .attr('stroke-width', 1)
+                             .attr('fill', 'none')
+                             .attr('stroke', function(d){
+                                return color_codes[subway_colors[d.properties.name[0]]] || '#000'
+                             })
+                             .attr('d', path)
+                             .attr('class', 'districts');
+                    })
+
+                }
+
+                let margin = {
+                    top: 50,
+                    right: 50,
+                    bottom: 50,
+                    left: 50
+                };
+                let width = 450 - margin.left - margin.right;
+                let height = 1000 - margin.top - margin.bottom;
+
+                const svg = d3.select('#nyc_map')
+                                    .append('svg')
+                                    .attr('shape-rendering', 'geometricPrecision')
+                                    .attr('height', height)
+
+                let projection, path;
+                d3.json('{% static 'new_york.geojson' %}').then(
+                    function(nyc_map_data){
+                        projection = d3.geoAlbers().fitWidth(width, nyc_map_data['features'][4]);
+                        path = d3.geoPath().projection(projection);
+                        const map_height = Math.ceil(path.bounds(nyc_map_data['features'][4])[1][1]);
+
+                        svg.attr('viewBox', [0, 0, width, map_height])
+                        svg.append('g')
+                             .attr('id', 'map')
+                             .selectAll('path')
+                             .data(nyc_map_data.features)
+                             .enter()
+                             .append('path')
+                             .attr('stroke', '#000')
+                             .attr('stroke-width', .2)
+                             .attr('fill', '#fff')
+                             .attr('d', path)
+                             .attr('class', 'districts');
+
+                        load_subway();
+                    }
+                )
+
+                d3.json('{% url 'library_map_data' %}').then(
+                    function(library_map_data){
+                        console.log(library_map_data)
+                        svg.append('g')
+                           .attr('id', 'libraries')
+                           .selectAll('circle')
+                           .data(d3.entries(library_map_data))
+                           .enter()
+                           .append('circle')
+                           .attr('stroke', '#000')
+                           .attr('opacity', .8)
+                           .attr('stroke-width', '1')
+                           .attr('fill', function(library) {
+                                return library.value.is_open ? '#000' : 'None'
+                           })
+                           .attr('r', 4)
+                           .attr('cx', function(library){
+                            console.log(projection([library.value.latitude, library.value.longitude]))
+                                return projection([library.value.latitude, library.value.longitude])[0]
+                           })
+                           .attr('cy', function(library){
+                                return projection([library.value.latitude, library.value.longitude])[1]
+                           })
+
+                    }
+                );
+            </script>
+        </div>
+        <div class="divider"></div>
+    </body>
+</html>
